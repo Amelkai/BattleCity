@@ -9,6 +9,7 @@
 #include "Renderer/ShaderProgram.h"
 #include "Resources/ResourceManager.h"
 #include "Renderer/Texture2D.h"
+#include "Renderer/Sprite.h"
 
 GLfloat point[] = {
      0.0f,  50.f, 0.0f,
@@ -46,7 +47,8 @@ void glfwKeyCallback(GLFWwindow* pWindow, int key,int scancode, int action, int 
 }
 
 int main(int argc, char** argv)
-{  /* Initialize the library */
+{  
+    /* Initialize the library */
     if (!glfwInit())
     {
         std::cout << "glfwInit faild!" << std::endl;
@@ -91,7 +93,20 @@ int main(int argc, char** argv)
             return -1;
         }
 
+        auto pSpriteShaderProgram = resourceManager.loadShaders("SpriteShader", "res/shaders/vSprite.txt", "res/shaders/fSprite.txt");
+        if (!pSpriteShaderProgram)
+        {
+            std::cerr << "Can't create shader program: " << "SpriteShader" << std::endl;
+            return -1;
+        }
+
         auto tex = resourceManager.loadTexture("DefaultTexture", "res/textures/map_16x16.png");
+        
+        std::vector<std::string> subTexturesNames = { "block", "topBlock", "bottomBlock", "leftBlock", "rightBlock", "topLeftBlock", "topRightBlock", "bottomLeftBlock", "bottomRightBlock", "beton" };
+        auto pTextureAtlas = resourceManager.loadTextureAtlas("DefaultTextureAtlas", "res/textures/map_16x16.png", std::move(subTexturesNames), 16, 16);
+
+        auto pSprite = resourceManager.loadSprite("NewSprite", "DefaultTextureAtlas", "SpriteShader", 100, 100, "beton");
+        pSprite->setPosition(glm::vec2(300, 100));
 
         GLuint points_vbo = 0;
         glGenBuffers(1, &points_vbo);
@@ -123,7 +138,7 @@ int main(int argc, char** argv)
         glEnableVertexAttribArray(2);
         glBindBuffer(GL_ARRAY_BUFFER, textCoord_vbo);
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
-
+        
         pDefaultShaderProgram->use();
         pDefaultShaderProgram->setInt("tex", 0);
 
@@ -136,6 +151,10 @@ int main(int argc, char** argv)
         glm::mat4 projectionMatrix = glm::ortho(0.f, static_cast<float>(g_windowSize.x), 0.f, static_cast<float>(g_windowSize.y), -100.f, 100.f);
 
         pDefaultShaderProgram->setMatrix4("projectionMat", projectionMatrix);
+
+        pSpriteShaderProgram->use();
+        pSpriteShaderProgram->setInt("tex", 0);
+        pSpriteShaderProgram->setMatrix4("projectionMat", projectionMatrix);
 
         /* Loop until the user closes the window */
         while (!glfwWindowShouldClose(pWindow))
@@ -152,6 +171,8 @@ int main(int argc, char** argv)
 
             pDefaultShaderProgram->setMatrix4("modelMat", modelMatrix_2);
             glDrawArrays(GL_TRIANGLES, 0, 3);
+
+            pSprite->render();
 
             /* Swap front and back buffers */
             glfwSwapBuffers(pWindow);
